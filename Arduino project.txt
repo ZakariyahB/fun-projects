@@ -1,0 +1,497 @@
+; Zakariyah Bello's Arduino project
+
+; release date - Nov 2024
+				
+
+; Addresses of SREG, DDRD, PORTD, DDRB, PORTB
+
+.equ SREG,0x3f 
+
+.equ DDRD,0x0A
+.equ PORTD,0x0B
+
+.equ DDRB,0x04
+.equ PORTB,0x05
+
+
+; specify the start address
+.org 0
+
+
+				; reset system status
+main:   ldi r16,0 		; set register r16 to zero
+	out SREG,r16 		; copy contents of r16 to SREG , i.e. , clear SREG.
+
+	ldi r16,0xF		
+	out DDRB,r16		; set lower 4 bits of PORTB to output
+
+	ldi r16,0xF0
+	out DDRD,r16		; set upper 4 bits of PORTD to output
+
+
+ mainloop: 
+
+
+; Displaying my initials: Z.B (Z - dec 26, . - dec 27, B - dec 2)
+
+	ldi r16,0xA		; A is hexadec for 1010
+	ldi r20,0x10		; 10 is hexadec for 10000
+	out PORTB,r16		
+	out PORTD,r20		; upper nybble show 0001 and lower nybble show 1010 making 00011010 - Dec 26
+
+	ldi r19,100
+	call delay
+
+	ldi r16,0xB		; B is hexadec for 1011
+	ldi r20,0x10		; 10 is hexadec for 10000
+	out PORTB,r16
+	out PORTD,r20		; 00011011 - dec 27 is shown
+	
+	ldi r19,100
+	call delay
+
+	ldi r16,0x2		; 2 is hexadec for 0010
+	ldi r20,0x0		; nothing is shown - 0000
+	out PORTB,r16
+	out PORTD,r20		; 00000001 - Dec 2 is shown
+
+	ldi r19,100
+	call delay
+
+
+
+; The first 3 letters of my name in Morse code - ZAK. ZAK if odd iteration, KAZ is even iteration
+
+	ldi r21,1		; make r21 = 1
+
+; start with r21 = 1 so that iteration number is equal to r21
+; put outside loop so r21 can keep increasing and not go back to 1
+
+
+
+  odd_loop:			; start of odd morse code (ZAK/ZAK5), appears first as the 1st iteration is odd
+
+	call Letter_Z		; Letter Z subroutine
+	call Letter_gap		; Letter gap subroutine
+	call Letter_A		; Letter A subroutine
+	call Letter_gap		; Letter gap subroutine
+	call Letter_K		; Letter K subroutine 
+
+
+	mov r22,r21		; r22 becomes the iteration number (r21 not used to check multiple of 5 as changing would affect iteration count)
+				; outside loop so it doesn't keep going back to original value
+
+  odd_check_multiple5:
+
+	cpi r22,5			; compare r22 (representing r21) and 5
+	brlo odd_interword_gap		; if r22<5 i.e. between 1 and 4 inclusive, then not multiple of 5. So go to odd_interword_gap to end word
+	subi r22,5			; else subtract 5 from r22
+	breq odd_multiple_five		; branch if r22 = 0, i.e. it started from a multiple of 5 so r21 is multiple of 5
+	rjmp odd_check_multiple5	; it r22 isn't 0 yet, redo odd_check_multiple5. Loops until r22 becomes 0(branches to odd_multiple_five) or 1-4(branches to odd_interword_gap)
+
+
+  odd_multiple_five:		; adds the 5 in morse code for when r21 is odd
+
+	call multiple_five	; subroutine to add 5 in morse code
+
+  odd_interword_gap:		; Inter-word gap
+
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,140		; keep off for 1400ms
+	call delay
+
+	
+
+; ZAK spelt if r21 (iteration number) not multiple of 5, else ZAK5 spelt
+
+
+; after every odd iteration is an even iteration, so go straight to even loop
+
+
+  even_loop:			; start of KAZ/KAZ5 morse code
+
+	inc r21			; add 1 to r21 as this counts as next iteration
+
+	call Letter_K		; Letter K subroutine
+	call Letter_gap		; Letter gap subroutine
+	call Letter_A		; Letter A subroutine
+	call Letter_gap		; Letter gap subroutine
+	call Letter_Z		; Letter Z subroutine 
+
+
+
+	mov r22,r21		; r22 becomes the iteration number (r21 not used to check multiple of 5 as changing would affect iteration count)
+				; outside loop so it doesn't keep going back to original value
+
+  even_check_multiple5:
+
+	cpi r22,5			; compare r22 (representing r21) and 5
+	brlo even_interword_gap		; if r22<5 i.e. between 1 and 4 inclusive, then not multiple of 5. So go to even_interword_gap to end word. KAZ spelt
+	subi r22,5			; else subtract 5 from r22
+	breq even_multiple_five		; branch if r22 = 0, i.e. it started from a multiple of 5 so r21 is multiple of 5
+	rjmp even_check_multiple5	; it r22 isn't 0 yet, redo even_check_multiple5. Continues until r22 becomes 0(branches to multiple_five) or 1-4(branches to even_interword_gap)
+	
+
+
+  even_multiple_five: 			; spell 5 in morse code for when r21 is even
+
+		call multiple_five	; subroutine to add 5 in morse code
+
+
+; KAZ5 spelt
+
+  even_interword_gap:			; the off timer at the end of word
+
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,140		; keep off for 1400ms
+	call delay
+
+
+	
+  check_iteration:
+			inc r21			; add 1 to r21 each time it passes here
+			cpi r21,51		; compare r21 with 51 as 50 iterations needed would be complete
+			brne odd_loop		; if r21 != 51 go back to the start of odd_loop, else carry-on
+
+
+	ldi r19,200
+	call delay		; end of Q3 Morse code pattern, leds off for extra 2s
+
+
+
+
+; ping-pong light pattern moving back and forth leds
+
+	
+  ping_pong: 	
+		ldi r16,0x0		; 0000 on last 4-bits
+		ldi r20,0x80		; 1000 on first 4 bits
+		out PORTB,r16
+		out PORTD,r20		; left-most (7-bit) led only is lit
+		ldi r19,150
+		call delay		; delay for 1.5s
+		
+		lsr r20			; moves the PORTD one to right - 0100
+		out PORTD,r20		; 6-bit led now lit
+		ldi r19,150	
+		call delay
+
+		lsr r20			; moves to right again
+		out PORTD,r20		; 5-bit led now lit
+		ldi r19,150
+		call delay
+
+		lsr r20			; moves to right again
+		out PORTD,r20		; 4-bit led now lit
+		ldi r19,150
+		call delay
+
+		ldi r16,0x8		; PORTB is now in use, 1000 on last 4 bits
+		ldi r20,0x0		; 0000 on first 4 bits
+		out PORTB,r16
+		out PORTD,r20		; 3-bit led only now lit
+		ldi r19,150
+		call delay
+
+		lsr r16			; moves to right 
+		out PORTB,r16		; 2-bit led now lit
+		ldi r19,150
+		call delay
+
+		lsr r16			; moves to right again
+		out PORTB,r16		; 1-bit led now lit
+		ldi r19,150
+		call delay
+
+		lsr r16			; moves to right again
+		out PORTB,r16		; 0-bit (last one) led now lit
+		ldi r19,150
+		call delay		
+
+		lsl r16			; starts moving to left one by one each time
+		out PORTB,r16
+		ldi r19,150
+		call delay
+
+		lsl r16
+		out PORTB,r16
+		ldi r19,150
+		call delay
+
+		lsl r16
+		out PORTB,r16
+		ldi r19,150
+		call delay
+
+		ldi r20,0x10		; switched back to PORTD so 0001 shown on first 4-bit
+		ldi r16,0x0		; 0000 on last 4-bit
+		out PORTD,r20
+		out PORTB,r16
+		ldi r19,150
+		call delay
+
+		lsl r20			; continues moving to left
+		out PORTD,r20
+		ldi r19,150
+		call delay
+
+		lsl r20
+		out PORTD,r20
+		ldi r19,150
+		call delay
+
+		
+		rjmp ping_pong		; go back to light the 7-bit led. ping_pong keeps going on forever
+
+
+
+
+
+
+
+
+
+
+; subroutines below
+
+; delay subroutine - delays for r19*10 milliseconds
+
+delay:  ldi r17, 255 		; 255
+        ldi r18,  13 		; initialise loop for 1 ms
+          			; inner loop is 5 cycles so 1 outer loop iteration is - 
+          			; 5 cycles * r17 * r18 = 
+          			; 5 cycles * 255 *  126 = 160650 cycles
+          			; 160650 cycles / 16,000,000 = 0.010040625 seconds (~10 ms) 
+	loop1:    nop           ; 1 cycle
+          dec r17    		; 1 cycle
+          cpi r17, 0 		; 1 cycle
+          brne loop1 		; 2 cycles
+          ldi r17, 255 		; reset inner loop
+          dec r18
+          cpi r18, 0
+          brne loop1
+          ldi r18, 21 		; reset first outer loop
+          dec r19
+          cpi r19, 0
+          brne loop1
+          ret
+
+
+; Letter Z in morse code subroutine 
+
+Letter_Z:			
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,60		; keep on for 600ms
+	call delay
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,20		; keep off for 200ms
+	call delay
+
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,60		; keep on for 600ms
+	call delay
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,20		; keep off for 200ms
+	call delay
+
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,20		; keep on for 200ms
+	call delay
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,20		; keep off for 200ms
+	call delay
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,20		; keep on for 200ms
+	call delay
+
+	ret
+
+
+; Letter gap in morse code subroutine
+
+Letter_gap:		
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,60		; keep off for 600ms
+	call delay
+
+	ret
+
+
+; Letter A in morse code subroutine
+
+Letter_A:		
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,20		; keep on for 200ms
+	call delay
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,20		; keep off for 200ms
+	call delay
+	
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,60		; keep on for 600ms
+	call delay
+	
+	ret
+
+
+; Letter K in morse code subroutine
+
+Letter_K:		
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,60		; keep on for 600ms
+	call delay
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,20		; keep off for 200ms
+	call delay
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,20		; keep on for 200ms
+	call delay
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,20		; keep off for 200ms
+	call delay
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,60		; keep on for 600ms
+	call delay
+	
+	ret
+
+
+
+; add 5 in morse code subroutine
+
+multiple_five: 
+	
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,20		; keep on for 200ms
+	call delay
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,20		; keep off for 200ms
+	call delay
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,20		; keep on for 200ms
+	call delay
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,20		; keep off for 200ms
+	call delay
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,20		; keep on for 200ms
+	call delay
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,20		; keep off for 200ms
+	call delay
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,20		; keep on for 200ms
+	call delay
+	
+	ldi r16,0x0		; turn off all bottom 4 lights
+	ldi r20,0x0		; turn off all top 4 lights
+	out PORTB,r16
+	out PORTD,r20		; byte is off
+	ldi r19,20		; keep off for 200ms
+	call delay
+
+	ldi r16,0xF		; turn on all bottom 4 lights - 00001111
+	ldi r20,0xF0		; turn on all top 4 lights - 11110000
+	out PORTB,r16
+	out PORTD,r20		; byte is on
+	ldi r19,20		; keep on for 200ms
+	call delay
+	
+	ret
+
