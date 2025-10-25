@@ -181,268 +181,235 @@
 </body>
 </html> -->
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pinhole Camera Project</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pinhole Camera Inverter</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #0e0e0e;
-      color: #f0f0f0;
-      line-height: 1.6;
-    }
+<!-- Document Scanner JS library -->
+<script src="https://cdn.jsdelivr.net/npm/document-scanner-js/dist/document-scanner.min.js"></script>
 
-    header {
-      background: linear-gradient(90deg, #0077b6, #00b4d8);
-      color: white;
-      text-align: center;
-      padding: 2rem 1rem;
-    }
+<style>
+  body {
+    background: #111;
+    color: white;
+    font-family: sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+  }
 
-    section {
-      max-width: 800px;
-      margin: 2rem auto;
-      padding: 1rem 2rem;
-    }
+  h1 {
+    margin-top: 20px;
+  }
 
-    h1, h2 {
-      text-align: center;
-      color: #00b4d8;
-    }
+  .controls {
+    margin: 15px 0;
+  }
 
-    p {
-      font-size: 1.1rem;
-    }
+  video, canvas {
+    width: 90%;
+    max-width: 400px;
+    border-radius: 10px;
+    background: black;
+  }
 
-    .camera-section {
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-    }
+  button {
+    background: #444;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    margin: 10px 5px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  button:hover {
+    background: #666;
+  }
 
-    video, canvas {
-      width: 90vw;
-      max-width: 500px;
-      border-radius: 10px;
-      background: black;
-    }
+  /* Overlay */
+  #previewOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+  }
 
-    button {
-      background: #00b4d8;
-      color: white;
-      border: none;
-      padding: 0.7rem 1.2rem;
-      font-size: 1rem;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background 0.3s;
-      margin: 0.2rem;
-    }
+  #previewBox {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
 
-    button:hover {
-      background: #0096c7;
-    }
+  #capturedImage {
+    max-width: 90vw;
+    max-height: 70vh;
+    border-radius: 8px;
+  }
 
-    label {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 1rem;
-    }
+  /* Minimal Chrome-style X button */
+  #closePreview {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+  #closePreview::before, #closePreview::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 16px;
+    height: 2px;
+    background: white;
+    transform-origin: center;
+  }
+  #closePreview::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+  }
+  #closePreview::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+  }
+  #closePreview:hover::before,
+  #closePreview:hover::after {
+    background: red;
+  }
 
-    footer {
-      text-align: center;
-      padding: 1.5rem;
-      background-color: #111;
-      color: #aaa;
-      margin-top: 3rem;
-      font-size: 0.9rem;
-    }
-
-    /* Preview overlay */
-    #previewOverlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.85);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-
-    #previewBox {
-      position: relative;
-      text-align: center;
-    }
-
-    #previewBox img {
-      max-width: 90vw;
-      max-height: 80vh;
-      border-radius: 10px;
-    }
-
-    #closePreview {
-      position: absolute;
-      top: -10px;
-      right: -10px;
-      background: #ff4d4d;
-      color: white;
-      font-size: 1.2rem;
-      border: none;
-      border-radius: 50%;
-      width: 32px;
-      height: 32px;
-      cursor: pointer;
-    }
-
-  </style>
+  #downloadBtn {
+    margin-top: 12px;
+    background: #007bff;
+  }
+</style>
 </head>
 <body>
-  <header>
-    <h1>Pinhole Camera Project</h1>
-    <p>Discover how light, geometry, and a simple hole can capture an image!</p>
-  </header>
+  <h1>Pinhole Camera Project</h1>
+  <p>This demo shows how light inversion in a pinhole camera works — the image flips because light rays cross paths through the pinhole. Try toggling inversion live below!</p>
 
-  <section>
-    <h2>What is a Pinhole Camera?</h2>
-    <p>
-      A pinhole camera is a simple optical device that captures images without using a lens.
-      It consists of a dark box with a tiny hole on one side. Light from an external scene
-      passes through this hole and projects an inverted image onto the opposite surface inside the box.
-    </p>
-
-    <p>
-      The smaller the hole, the sharper the image—but less light enters, making it dimmer.
-      This principle is the foundation of how cameras work today, even digital ones.
-    </p>
-
-    <h2>How It Works</h2>
-    <ul>
-      <li>Light rays travel in straight lines.</li>
-      <li>Only a few rays pass through the pinhole, forming an inverted image.</li>
-      <li>The image can be projected onto a surface or recorded digitally.</li>
-    </ul>
-  </section>
-
-  <section class="camera-section">
-    <h2>Try It Yourself!</h2>
+  <div class="controls">
     <label><input type="checkbox" id="liveInvert"> Live Invert</label>
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas" style="display:none;"></canvas>
-    <div>
-      <button id="captureBtn">Capture</button>
-      <button id="switchBtn">Switch Camera</button>
-    </div>
-  </section>
+  </div>
 
-  <!-- Preview overlay -->
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+
+  <div>
+    <button id="captureBtn">Capture</button>
+    <button id="switchBtn">Switch Camera</button>
+  </div>
+
+  <!-- Overlay for captured image -->
   <div id="previewOverlay">
     <div id="previewBox">
-      <button id="closePreview">✖</button>
+      <button id="closePreview" title="Close"></button>
       <img id="capturedImage" alt="Captured frame">
-      <div>
-        <button id="downloadBtn">Download</button>
-      </div>
+      <button id="downloadBtn">Download</button>
     </div>
   </div>
 
-  <footer>
-    <p>© 2025 Pinhole Camera Project | Built for learning and exploration.</p>
-  </footer>
+<script>
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const liveInvertCheckbox = document.getElementById("liveInvert");
+  const captureBtn = document.getElementById("captureBtn");
+  const switchBtn = document.getElementById("switchBtn");
+  const previewOverlay = document.getElementById("previewOverlay");
+  const closePreview = document.getElementById("closePreview");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const capturedImage = document.getElementById("capturedImage");
 
-  <!-- Optional scanning library -->
-  <script src="https://cdn.jsdelivr.net/npm/document-scanner-js/dist/document-scanner.min.js"></script>
+  let currentStream = null;
+  let useFrontCamera = true;
+  let invertLive = false;
 
-  <script>
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const liveInvertCheckbox = document.getElementById('liveInvert');
-    const captureBtn = document.getElementById('captureBtn');
-    const switchBtn = document.getElementById('switchBtn');
-
-    const previewOverlay = document.getElementById('previewOverlay');
-    const capturedImage = document.getElementById('capturedImage');
-    const closePreview = document.getElementById('closePreview');
-    const downloadBtn = document.getElementById('downloadBtn');
-
-    let invertLive = false;
-    let currentStream = null;
-    let usingFrontCamera = true;
-
-    liveInvertCheckbox.addEventListener('change', () => {
-      invertLive = liveInvertCheckbox.checked;
-    });
-
-    async function startCamera(facingMode = 'user') {
-      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false });
-        currentStream = stream;
-        video.srcObject = stream;
-        video.addEventListener('loadedmetadata', () => {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-        });
-      } catch (err) {
-        alert('Camera access error: ' + err.message);
-      }
+  // Start camera
+  async function startCamera() {
+    if (currentStream) {
+      currentStream.getTracks().forEach(t => t.stop());
     }
-
-    switchBtn.addEventListener('click', () => {
-      usingFrontCamera = !usingFrontCamera;
-      startCamera(usingFrontCamera ? 'user' : 'environment');
-    });
-
-    function renderFrame() {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      if (invertLive) {
-        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const d = frame.data;
-        for (let i = 0; i < d.length; i += 4) {
-          d[i] = 255 - d[i];
-          d[i + 1] = 255 - d[i + 1];
-          d[i + 2] = 255 - d[i + 2];
-        }
-        ctx.putImageData(frame, 0, 0);
-      }
-      requestAnimationFrame(renderFrame);
+    const constraints = {
+      video: { facingMode: useFrontCamera ? "user" : "environment" }
+    };
+    try {
+      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = currentStream;
+      video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        renderFrame();
+      };
+    } catch (err) {
+      alert("Camera access denied or unavailable.");
+      console.error(err);
     }
+  }
 
-    captureBtn.addEventListener('click', () => {
-      const dataURL = canvas.toDataURL('image/png');
-      capturedImage.src = dataURL;
-      previewOverlay.style.display = 'flex';
-
-      // Enable document scanning adjustments (optional)
-      if (window.DocumentScanner) {
-        const scanner = new DocumentScanner('#capturedImage');
-        scanner.enableEditor();
+  // Draw and optionally invert live feed
+  function renderFrame() {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    if (invertLive) {
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = frame.data;
+      for (let i = 0; i < d.length; i += 4) {
+        d[i] = 255 - d[i];
+        d[i + 1] = 255 - d[i + 1];
+        d[i + 2] = 255 - d[i + 2];
       }
-    });
+      ctx.putImageData(frame, 0, 0);
+    }
+    requestAnimationFrame(renderFrame);
+  }
 
-    closePreview.addEventListener('click', () => {
-      previewOverlay.style.display = 'none';
-    });
+  liveInvertCheckbox.addEventListener("change", () => {
+    invertLive = liveInvertCheckbox.checked;
+  });
 
-    downloadBtn.addEventListener('click', () => {
-      const link = document.createElement('a');
-      link.download = 'scanned.png';
-      link.href = capturedImage.src;
-      link.click();
-    });
-
+  switchBtn.addEventListener("click", () => {
+    useFrontCamera = !useFrontCamera;
     startCamera();
-    renderFrame();
-  </script>
+  });
+
+  // Capture and show preview
+  captureBtn.addEventListener("click", () => {
+    const dataURL = canvas.toDataURL("image/png");
+    capturedImage.src = dataURL;
+    previewOverlay.style.display = "flex";
+    // Once loaded, allow document scanning/cropping
+    setTimeout(() => {
+      try {
+        const scanner = new DocumentScanner("#capturedImage", {
+          resultImageSize: { width: 800, height: 1000 }
+        });
+        scanner.enableEditor(); // user can adjust edges
+      } catch (err) {
+        console.warn("Scanner library not loaded or error:", err);
+      }
+    }, 200);
+  });
+
+  closePreview.addEventListener("click", () => {
+    previewOverlay.style.display = "none";
+  });
+
+  downloadBtn.addEventListener("click", () => {
+    const link = document.createElement("a");
+    link.download = "scanned.png";
+    link.href = capturedImage.src;
+    link.click();
+  });
+
+  startCamera();
+</script>
 </body>
 </html>
