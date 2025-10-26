@@ -417,6 +417,30 @@
       }
     }
 
+    .content-section {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+
+    .info-card {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 2.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      transform: translateY(50px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+
+    .info-card.scroll-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
     h2 {
       font-size: 2rem;
       margin-bottom: 1.2rem;
@@ -463,11 +487,11 @@
       text-align: center;
       max-width: 700px;
       opacity: 0;
-      transform: translateY(30px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
+      transform: translateY(50px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
     }
 
-    .camera-section.visible {
+    .camera-section.scroll-visible {
       opacity: 1;
       transform: translateY(0);
     }
@@ -865,6 +889,30 @@
     });
 
     startCamera();
+
+    // Scroll animation functionality
+    function checkScroll() {
+      const elements = document.querySelectorAll('.info-card, .camera-section');
+      
+      elements.forEach(element => {
+        const rect = element.getBoundingClientRect();
+        const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+        
+        // Element is visible if its top is in the viewport
+        if (rect.top <= windowHeight * 0.85) {
+          element.classList.add('scroll-visible');
+        }
+      });
+    }
+
+    // Check on scroll
+    window.addEventListener('scroll', checkScroll);
+    
+    // Check on load
+    window.addEventListener('load', checkScroll);
+    
+    // Initial check
+    checkScroll();
   </script>
 </body>
 </html>
